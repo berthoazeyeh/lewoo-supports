@@ -92,7 +92,7 @@ export function AppStack() {
     dispatch(updateBannerMessage("Demarage de la synchronitions des tickets "));
 
     await getRequests();
-    dispatch(updateSyncing(true));
+    dispatch(updateSyncing(false));
   }
 
   const getRequests = async (): Promise<void> => {

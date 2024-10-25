@@ -5,9 +5,10 @@ import { useCurrentBannerMessage } from "store";
 
 interface MyBannerProps {
     refreshLocal: boolean,
-    theme: any
+    theme: any,
+    message?: any,
 }
-const MyBanner = ({ refreshLocal, theme }: MyBannerProps) => {
+const MyBanner = ({ refreshLocal, theme, message }: MyBannerProps) => {
     return <Banner
         visible={refreshLocal}
         style={{ width: "100%", }}

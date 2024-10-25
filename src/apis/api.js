@@ -6,11 +6,20 @@ export const SERVICE_KEY = 'CgYh5TbHicce4HDZzk11At2Z2k1DuxkR'
 
 export const LOCAL_URL = "https://dev.support.africasystems.com";
 export const DATABASE = "support_erp_db";
-
 const headers = new Headers();
+
+
 
 headers.append('api-key', "Y1ZPPWYA7240ACT27P5MZNISUHB8KX8H")
 headers.append('token', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6ImFkbWluQGFmcmljYXN5c3RlbXMuY29tIiwidWlkIjoyfQ.6xsEW-0sso5zckj-jP4Jgxi9N5IWjIpZnFR0UUFFS5k")
+
+
+
+export const LOCAL_URL1 = "https://africasystems.com";
+const headers1 = new Headers();
+
+headers1.append('api-key', "SJ46U61QW74R7CD31KUQV642JQCZ5UBC")
+headers1.append('token', "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpbiI6InBhdmVkLm5nb3VuZUBhZnJpY2FzeXN0ZW1zLmNvbSIsInVpZCI6NDh9.nbUCgV8CKCrtn0UZmUnMnzgFxHrDyBz1rarfTM73ROY")
 
 
 
@@ -23,6 +32,21 @@ export async function postData(url, { arg }) {
         body: JSON.stringify(arg)
     }).then((res) => {
         // console.log("mauvaise reponse", res);
+        if (res.ok) {
+            return res.json()
+        } else {
+            console.log("mauvaise reponse", res);
+        }
+    })
+}
+export async function postData1(url, { arg }) {
+    console.log("request URL", url);
+    console.log("request arg", JSON.stringify(arg));
+    return fetch(url, {
+        headers: headers1,
+        method: 'POST',
+        body: JSON.stringify(arg)
+    }).then((res) => {
         if (res.ok) {
             return res.json()
         } else {
@@ -324,6 +348,23 @@ export async function getData(url) {
 
     return fetch(url, {
         headers: headers,
+        method: 'GET',
+    }).then((res) => {
+        if (res.ok) {
+
+            return res.json()
+        } else {
+            console.log("mauvaise reponse", res);
+
+        }
+    })
+}
+export async function getDataAS(url) {
+    // console.log("request URL", url);
+
+
+    return fetch(url, {
+        headers: headers1,
         method: 'GET',
     }).then((res) => {
         if (res.ok) {
