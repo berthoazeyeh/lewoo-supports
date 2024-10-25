@@ -4,7 +4,7 @@ import { AddTicketScreen, EventDetailsScreen, HomeScreen } from 'screens';
 import HomeBottomTabNavigation from './bottom';
 
 export type AppStackList = {
-    HomeBottomTabNavigation: undefined;
+    HomeScreen: undefined;
     AddTicketScreen: undefined;
     EventDetailsScreen: undefined;
     LoginScreen: undefined;
@@ -18,12 +18,12 @@ const AppStacks = () => {
             screenOptions={{
                 headerBackTitleVisible: false,
             }}
-            initialRouteName="HomeBottomTabNavigation">
+            initialRouteName="HomeScreen">
 
             <AppStack.Screen
                 options={{ headerShown: false }}
-                name="HomeBottomTabNavigation"
-                component={HomeBottomTabNavigation}
+                name="HomeScreen"
+                component={HomeScreen}
             />
             <AppStack.Screen
                 options={{ headerShown: false }}

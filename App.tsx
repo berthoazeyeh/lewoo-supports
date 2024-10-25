@@ -19,6 +19,7 @@ import { SWRConfig } from 'swr';
 
 // @ts-ignore
 import { AppStack } from '@navigation';
+import { InitialStack } from 'navigation/stack/InitialStack';
 
 
 const App = () => {
@@ -73,7 +74,7 @@ const App = () => {
               backgroundColor={useTheme().statusbar}
               barStyle={!isDarkMode() ? 'dark-content' : 'light-content'}
             />
-            <AppStack />
+            <InitialStack />
             <FlashMessage position="center" />
 
           </SWRConfig>

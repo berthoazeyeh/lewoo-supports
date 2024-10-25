@@ -1,66 +1,35 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, View, Modal, Image, TextInput, Alert, Switch, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, View, Modal, Image, TextInput, Alert, Switch, TouchableWithoutFeedback, Keyboard, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { Text, Button, Card, Title, Paragraph } from 'react-native-paper';
+import { Text, Button, Card, Title, Paragraph, FAB, Icon } from 'react-native-paper';
 import SQLite from 'react-native-sqlite-storage';
 import Tts from 'react-native-tts';
 import KeepAwake from 'react-native-keep-awake';
-import imageMapping from './data';
 import ListeningIndicator from 'components/Listining';
 import MyBanner from 'components/MyBanner';
-import { useIsSyncing, useTheme } from 'store';
+import { updateSynAttendencesUP, useIsSyncing, useSyncingAttendences, useTheme } from 'store';
+import { createTableForAttendance, db, getUserByRfidCodes, handleAttendance, handleCreateAttendance, handleCreateAttendanceCorrect } from 'apis/databaseAttend';
+import { oupss, Theme } from 'utils';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useDispatch } from 'react-redux';
 
 let typingTimeout = null;
 let clearTimeoutRef = null;
 
-const deletes = () => {
-    db.transaction(tx => {
-        tx.executeSql(
-            `DELETE FROM attendance where id>?`,
-            [0],
-            (tx, results) => {
-                const rows = results.rows;
-                let data = [];
 
-                for (let i = 0; i < rows.length; i++) {
-                    data.push(rows.item(i));
-                }
-                console.log('Retrieved data from africasystem:', data);
-            },
-            error => {
-                console.error('Error retrieving data from africasystem:', error);
-            }
-        );
-    });
-};
-
-const update = () => {
-    db.transaction(tx => {
-        tx.executeSql(
-            `UPDATE africasystem SET description=? where rfidcode=?`,
-            ['Technicien', '2574247916'],
-            (tx, results) => {
-                const rows = results.rows;
-                let data = [];
-
-                for (let i = 0; i < rows.length; i++) {
-                    data.push(rows.item(i));
-                }
-
-
-                console.log('Retrieved data from africasystem:', data);
-            },
-            error => {
-                console.error('Error retrieving data from africasystem:', error);
-            }
-        );
-    });
-};
 
 const selectAllFromAfricasystem = () => {
     db.transaction(tx => {
         tx.executeSql(
-            `SELECT * FROM africasystem`,
+            `SELECT * FROM attendance WHERE id_user = ? ORDER BY created_at DESC LIMIT 1;`,
+            [30],
+            (_, { rows }) => {
+
+                console.log("rows........", rows.item(0));
+
+            });
+        tx.executeSql(
+            `SELECT id, rfidcode, name FROM africasystem`,
             [],
             (tx, results) => {
                 const rows = results.rows;
@@ -69,274 +38,101 @@ const selectAllFromAfricasystem = () => {
                 for (let i = 0; i < rows.length; i++) {
                     data.push(rows.item(i));
                 }
-
-
                 console.log('Retrieved data from africasystem:', data);
             },
             error => {
-                console.error('Error retrieving data from africasystem:', error);
-            }
-        );
-    });
-};
-
-const getFormattedTime = () => {
-    const date = new Date();
-    const hours = date.getHours();
-    const minutes = date.getMinutes() - 1;
-
-    return `${hours} heure ${minutes} minute`;
-};
-
-
-const insertIntoAfricasystem = (name, rfidcode, image, description) => {
-    db.transaction(tx => {
-        tx.executeSql(
-            `INSERT INTO africasystem (name, rfidcode, image, description) VALUES (?, ?, ?, ?)`,
-            [name, rfidcode, image, description],
-            (tx, results) => {
-                if (results.rowsAffected > 0) {
-                    console.log('User inserted successfully');
-                } else {
-                    console.log('Insert failed');
-                }
-            },
-            error => {
-                console.error('Error inserting user: ', error);
-            }
-        );
-    });
-};
-
-const db = SQLite.openDatabase(
-    {
-        name: 'compagnyAttendance.db',
-        location: 'default',
-    },
-    () => {
-        console.log('Database compagnyAttendance opened successfully');
-    },
-    error => {
-        console.error('Error opening database: ', error);
-    },
-);
-
-const createTableIfNotExists = () => {
-    db.transaction(tx => {
-        tx.executeSql(
-            `CREATE TABLE IF NOT EXISTS africasystem (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        rfidcode TEXT UNIQUE,
-        image TEXT,
-        description TEXT
-      );`,
-            [],
-            () => {
-                console.log('africasystem table created successfully');
-            },
-            error => {
-                console.error('Error creating tables: ', error);
-            }
-        );
-
-        tx.executeSql(
-            `CREATE TABLE IF NOT EXISTS attendance (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        id_user INTEGER NOT NULL,
-        checkin INTEGER DEFAULT 0,
-        checkin_time DATETIME,
-        checkout INTEGER DEFAULT 0,
-        checkout_time DATETIME,
-        FOREIGN KEY (id_user) REFERENCES africasystem(id) ON DELETE CASCADE ON UPDATE CASCADE
-      );`,
-            [],
-            () => {
-                console.log('Table attendance created successfully');
-            },
-            error => {
-                console.error('Error creating attendance table: ', error);
+                // console.error('Error retrieving data from africasystem:', error);
             }
         );
     });
 };
 
 
-const getUserByRfidCode = (rfidcode, setSelectedUser, setModalVisible, selectedLanguage, isTtsEnabled) => {
-    db.transaction(tx => {
-        tx.executeSql(
-            'SELECT * FROM africasystem WHERE rfidcode = ?',
-            [rfidcode],
-            (tx, results) => {
-                if (results.rows.length > 0) {
-                    const user = results.rows.item(0);
-                    setSelectedUser(user);
-                    setModalVisible(true);
-                    checkin_checkout(user, selectedLanguage, isTtsEnabled)
-                } else {
-                    Alert.alert('No user found with the given RFID code');
-                }
-            },
-            error => {
-                console.error('Error retrieving user by RFID code: ', error);
-            },
-        );
-    });
-};
-
-
-const checkin_checkout = (user, selectedLanguage, isTtsEnabled) => {
-    let date = new Date()
-    let time_insert = date.toLocaleString();
-    let currentHour = date.getHours();
-
-    db.transaction(tx => {
-        // Query from 'attendance' table
-        tx.executeSql(
-            'SELECT * FROM attendance WHERE id_user=? AND checkin=? AND checkout=? ORDER BY checkin_time DESC LIMIT 1',
-            [user.id, 1, 0],
-            (tx, results) => {
-                if (results.rows.length > 0) {
-                    // Update the record if a matching check-in is found
-
-                    tx.executeSql(
-                        'UPDATE attendance SET checkout=?, checkout_time=? WHERE id_user=? AND checkin=? AND checkout=?',
-                        [1, time_insert, user.id, 1, 0],
-                        (tx, results) => {
-
-                            if (currentHour >= 10 && currentHour <= 15) {
-
-                                if (isTtsEnabled) {
-                                    let time = getFormattedTime();
-                                    Tts.setDefaultLanguage(selectedLanguage).then(() => {
-                                        Tts.speak(`${user.name} prend une pause à ${time}`);
-                                    });
-                                }
-
-                            } else {
-
-                                if (isTtsEnabled) {
-                                    let time = getFormattedTime();
-                                    Tts.setDefaultLanguage(selectedLanguage).then(() => {
-                                        Tts.speak(`${user.name} rentre à ${time}`);
-                                    });
-                                }
-
-                            }
-
-                        },
-                        error => {
-                            console.error('Error during checkout: ', error);
-                        },
-                    );
-
-
-
-                } else {
-                    // Insert a new check-in if no matching record is found
-                    tx.executeSql(
-                        'INSERT INTO attendance (id_user, checkin, checkin_time) VALUES (?, ?, ?)',
-                        [user.id, 1, time_insert],
-                        (tx, results) => {
-                            if (currentHour >= 10 && currentHour <= 15) {
-
-                                if (isTtsEnabled) {
-                                    let time = getFormattedTime();
-                                    Tts.setDefaultLanguage(selectedLanguage).then(() => {
-                                        Tts.speak(`${user.name} reviens de pause à ${time}`);
-                                    });
-                                }
-
-                            } else {
-
-                                if (isTtsEnabled) {
-                                    let time = getFormattedTime();
-                                    Tts.setDefaultLanguage(selectedLanguage).then(() => {
-                                        Tts.speak(`${user.name} arrive à ${time}`);
-                                    });
-                                }
-
-                            }
-
-                        },
-                        error => {
-                            console.error('Error during checkin: ', error);
-                        },
-                    );
-                }
-            },
-            error => {
-                console.error('Error retrieving attendance record: ', error);
-            },
-        );
-    });
-};
 
 
 
 
-const AttendencesNFC = () => {
+
+
+const AttendencesNFC = (props) => {
     const [nfcTag, setNfcTag] = useState('');
     const [modalVisible, setModalVisible] = useState(false);
+    const [tmpVisible, setTmpVisible] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [selectedLanguage, setSelectedLanguage] = useState('fr-FR');
     const [isTtsEnabled, setIsTtsEnabled] = useState(true);
-    const [addUserModalVisible, setAddUserModalVisible] = useState(false); // State for add user modal
-    const [newUserName, setNewUserName] = useState(''); // Input for new user's name
-    const [newUserRfidCode, setNewUserRfidCode] = useState(''); // Input for new user's RFID code
-    const [newUserDescription, setNewUserDescription] = useState(''); // Input for new user's description
-    const [newUserImage, setNewUserImage] = useState(''); // Input for new user's description
-    const isSynchronised = useIsSyncing();
+    const [addUserModalVisible, setAddUserModalVisible] = useState(false);
+    const [message, setMessage] = useState(null);
+    const isSynchronised = useSyncingAttendences();
     const theme = useTheme();
-
+    const { navigation } = props
     const nfcInputRef = useRef(null);
+    const dispatch = useDispatch()
 
+    const createAllTable = async () => {
+        await createTableForAttendance(db);
+    }
     const handleNfcInput = (rfidcode) => {
         setNfcTag(rfidcode);
+        onRfidScan(rfidcode)
+    };
 
-        if (typingTimeout) {
-            clearTimeout(typingTimeout);
-        }
 
-        typingTimeout = setTimeout(() => {
-            getUserByRfidCode(rfidcode, setSelectedUser, setModalVisible, selectedLanguage, isTtsEnabled);
+    const onRfidScan = async (rfidCode) => {
+        try {
+            const res = await getUserByRfidCodes(rfidCode);
+            if (res.success) {
+                if (typingTimeout) {
+                    clearTimeout(typingTimeout);
+                }
+                setTmpVisible(false)
+                setSelectedUser(res.data);
+                const res1 = await handleCreateAttendanceCorrect(res.data?.id, res.data?.name);
+                console.log("res1[[[[", res1);
 
-            if (clearTimeoutRef) {
-                clearTimeout(clearTimeoutRef);
+                if (res1.success) {
+                    setMessage(res1.message)
+                    if (isTtsEnabled) {
+                        Tts.setDefaultLanguage(selectedLanguage).then(() => {
+                            Tts.speak(res1.message);
+                        });
+                    }
+                    if (clearTimeoutRef) {
+                        clearTimeout(clearTimeoutRef);
+                    }
+                    clearTimeoutRef = setTimeout(() => {
+                        setMessage(null)
+                        setNfcTag('');
+                        setSelectedUser(null);
+                        setModalVisible(false);
+                        if (nfcInputRef.current) {
+                            nfcInputRef.current.focus();
+                        }
+                    }, 15000);
+                    dispatch(updateSynAttendencesUP(false))
+                    setTimeout(() => {
+                        dispatch(updateSynAttendencesUP(true))
+                    }, 1000);
+                }
+                selectAllFromAfricasystem()
+                setModalVisible(true);
+            } else {
+                setTmpVisible(false)
+                setAddUserModalVisible(true)
+                clearTimeoutRef = setTimeout(() => {
+                    setAddUserModalVisible(false);
+                    if (nfcInputRef.current) {
+                        nfcInputRef.current.focus();
+                    }
+                }, 5000);
             }
 
-            clearTimeoutRef = setTimeout(() => {
-                setNfcTag('');
-                setSelectedUser(null);
-                setModalVisible(false);
-                if (nfcInputRef.current) {
-                    nfcInputRef.current.focus();
-                }
-            }, 5000);
-        }, 500);
-    };
-
-    const handleAddUser = () => {
-        if (!newUserName || !newUserRfidCode || !newUserDescription) {
-            Alert.alert('Please fill in all fields');
-            return;
+        } catch (error) {
+            console.log('Utilisateur non trouvé :', error);
         }
-
-        insertIntoAfricasystem(newUserName, newUserRfidCode, `images/${newUserImage}.png`, newUserDescription);
-        Alert.alert('User added successfully');
-        setNewUserName('');
-        setNewUserRfidCode('');
-        setNewUserDescription('');
-        setNewUserImage('');
-        setAddUserModalVisible(false); // Close the modal after adding the user
     };
-
-    // Keyboard.dismiss()
     useEffect(() => {
-        // insertIntoAfricasystem('Arielle NTOH','1349278385','images/arielle.png', 'Agent support 1')
-        // update()
-        // deletes()
-        createTableIfNotExists();
         if (nfcInputRef.current) {
             nfcInputRef.current.focus();
         }
@@ -345,9 +141,14 @@ const AttendencesNFC = () => {
 
     }, []);
 
+    useEffect(() => {
+        createAllTable()
+
+    }, []);
+
     return (
-        <>
-            {/* Modal for viewing user details */}
+        <View style={{ flex: 1 }}>
+
             <MyBanner refreshLocal={isSynchronised} theme={theme} />
 
             <Modal
@@ -360,12 +161,12 @@ const AttendencesNFC = () => {
                     <View style={styles.modalContent}>
                         {selectedUser ? (
                             <>
-                                <Text style={styles.userName}>{selectedUser.name}</Text>
+                                {message && <Text style={styles.userName}>{message}</Text>}
                                 <Image
-                                    source={selectedUser ? imageMapping[selectedUser.image] : require('../../../images/default.png')}
+                                    source={{ uri: `data:image/jpeg;base64,${selectedUser.image}` }}
                                     style={styles.userImage}
                                 />
-                                <Text style={styles.userDescription}>{selectedUser.description}</Text>
+                                <Text style={styles.userName}>{selectedUser.name}</Text>
                                 <Button onPress={() => setModalVisible(false)}>Close</Button>
                             </>
                         ) : (
@@ -374,8 +175,43 @@ const AttendencesNFC = () => {
                     </View>
                 </View>
             </Modal>
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={tmpVisible}
+                onRequestClose={() => setTmpVisible(false)}
+                onTouchCancel={() => setTmpVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={{
+                        width: "80%", padding: 20,
+                        backgroundColor: 'white',
+                        borderRadius: 10,
+                        alignItems: 'center',
+                    }}>
+                        <View style={styles.inputContainer}>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="User RFID Code"
+                                value={nfcTag}
+                                onChangeText={(code) => {
+                                    setNfcTag(code);
+                                }}
+                            />
+                        </View>
 
-            {/* Modal for adding a new user */}
+                        <Button
+                            icon={!loading ? "account-arrow-right" : undefined}
+                            mode="contained"
+                            onPress={() => onRfidScan(nfcTag)}
+                        >
+                            {loading ? <ActivityIndicator color={theme.secondaryText} /> : ' check.'}
+                        </Button>
+                    </View>
+                </View>
+            </Modal>
+
+
             <Modal
                 animationType="slide"
                 transparent={true}
@@ -384,45 +220,16 @@ const AttendencesNFC = () => {
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Add New User</Text>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Name:</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter name"
-                                value={newUserName}
-                                onChangeText={setNewUserName}
-                            />
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>RFID Code:</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter RFID code"
-                                value={newUserRfidCode}
-                                onChangeText={setNewUserRfidCode}
-                            />
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Description:</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter description"
-                                value={newUserDescription}
-                                onChangeText={setNewUserDescription}
-                            />
-                        </View>
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>Image:</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter the image location"
-                                value={newUserImage}
-                                onChangeText={setNewUserImage}
-                            />
-                        </View>
-                        <Button onPress={handleAddUser}>Add User</Button>
-                        <Button onPress={() => setAddUserModalVisible(false)}>Close</Button>
+                        <TouchableOpacity onPress={() => setAddUserModalVisible(false)} style={{ position: "absolute", right: 10, top: 7 }}>
+                            <MaterialCommunityIcons name="close" size={25} color={theme.primaryText} />
+                        </TouchableOpacity>
+                        <Image
+                            source={oupss}
+                            style={styles.image}
+                        />
+                        <Text style={styles.labels}>Nous avons du mal à vous reconnaître, veuillez réessayer s'il vous plaît.</Text>
+                        <Text style={styles.labels}>{nfcTag}</Text>
+
                     </View>
                 </View>
             </Modal>
@@ -465,7 +272,6 @@ const AttendencesNFC = () => {
                             />
                         </View>
 
-                        {/* Hidden TextInput to capture the NFC tag data */}
                         <TextInput
                             ref={nfcInputRef}
                             style={styles.hiddenInput}
@@ -481,15 +287,38 @@ const AttendencesNFC = () => {
                                 </Card.Content>
                             </Card>
                         )}
+                        <Button icon="account-arrow-right" mode="contained" onPress={() => navigation.reset({
+                            index: 0,
+                            routes: [{ name: 'ApplicationStacks' }],
+                        })}>
+                            Vous êtes membre du support ? Continuez.
+                        </Button>
                     </ScrollView>
+                    <FAB
+                        icon="plus"
+                        style={styles.fab}
+                        color={theme.secondaryText}
+                        onPress={() => {
+
+                            setTmpVisible(true)
+
+
+                        }}
+                    />
                 </SafeAreaView>
             </TouchableWithoutFeedback>
 
-        </>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
+    fab: {
+        position: 'absolute',
+        margin: 16,
+        right: 0,
+        bottom: 20,
+    },
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',
@@ -523,8 +352,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-        width: 400,
         padding: 20,
+        width: "95%",
         backgroundColor: 'white',
         borderRadius: 10,
         alignItems: 'center',
@@ -542,12 +371,23 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     userImage: {
-        width: 300,
-        height: 300,
+        width: 200,
+        height: 200,
         borderRadius: 10,
+        marginVertical: 20,
         borderWidth: 2,
         borderColor: '#ccc',
         marginBottom: 10,
+        resizeMode: "stretch"
+
+    },
+    image: {
+        width: 250,
+        height: 250,
+        borderRadius: 10,
+        marginBottom: 20,
+        resizeMode: "stretch"
+
     },
     hiddenInput: {
         height: 0,
@@ -571,6 +411,11 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 16,
         marginRight: 10,
+    },
+    labels: {
+        textAlign: "center",
+        fontSize: 15,
+        ...Theme.fontStyle.montserrat.semiBold
     },
     modalTitle: {
         fontSize: 20,
