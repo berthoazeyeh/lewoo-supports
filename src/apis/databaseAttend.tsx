@@ -298,9 +298,7 @@ export const updateAttententLocal = (id: any) => {
     return new Promise((resolve, reject) => {
         db.transaction((tx: any) => {
             tx.executeSql(
-                `UPDATE attendance
-                SET 
-                    isLocal = ? 
+                `DELETE FROM attendance
                 WHERE id = ?`,
                 [0, id],
                 () => resolve({ data: 'types', success: true }), // Résoudre si la suppression réussit

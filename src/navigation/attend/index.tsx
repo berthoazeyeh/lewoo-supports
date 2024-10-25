@@ -5,7 +5,7 @@ import moment from 'moment';
 import React, { useEffect } from 'react'
 import { useDispatch } from 'react-redux';
 import { AttendencesNFC, SignInScreen, WelcomeScreen } from 'screens';
-import { updateAttendencesBannerMessage, updateSynAttendencesUP, updateSyncingAttendences, useSynAttendencesStateDown, useSynAttendencesStateUp } from 'store';
+import { updateAttendencesBannerMessage, updateSynAttendencesDOWN, updateSynAttendencesUP, updateSyncingAttendences, useSynAttendencesStateDown, useSynAttendencesStateUp } from 'store';
 import useSWR from 'swr';
 import useSWRMutation from 'swr/mutation';
 import { showCustomMessage } from 'utils';
@@ -75,7 +75,6 @@ const AttendencesStack = () => {
     }
     useEffect(() => {
         if (isLoadingType) {
-
             dispatch(updateSyncingAttendences(true));
         }
 
@@ -83,6 +82,11 @@ const AttendencesStack = () => {
             syncEmployee();
         }
     }, [data])
+    useEffect(() => {
+        if (synDown) {
+            syncAttendence()
+        }
+    }, [synDown])
 
 
     useEffect(() => {
@@ -90,7 +94,6 @@ const AttendencesStack = () => {
             synServerDataData();
         }
         console.log("----------------------------------");
-
     }, [synUp])
 
     const getEmployee = async (): Promise<void> => {
@@ -136,6 +139,13 @@ const AttendencesStack = () => {
         }
         dispatch(updateSyncingAttendences(false));
     }
+    const syncAttendence = async () => {
+        dispatch(updateSyncingAttendences(true));
+        dispatch(updateAttendencesBannerMessage("Demarage de la synchronitions des Attendences "));
+        await getLastAttendences();
+        dispatch(updateSyncingAttendences(false));
+        dispatch(updateSynAttendencesDOWN(false));
+    }
     const insertMultipleRequests = async (dataList: any[],) => {
         dispatch(updateSyncingAttendences(true));
 
@@ -173,7 +183,9 @@ const AttendencesStack = () => {
                             resolve("All requests inserted");
                         }
                     } else {
-                        resolve("");
+                        if (i === total) {
+                            resolve("");
+                        }
                         // showCustomMessage("Information", res?.message, "warning", "bottom");
                     }
                 } catch (error) {
