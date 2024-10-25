@@ -60,7 +60,7 @@ const update = () => {
 const selectAllFromAfricasystem = () => {
     db.transaction(tx => {
         tx.executeSql(
-            `SELECT * FROM attendance`,
+            `SELECT * FROM africasystem`,
             [],
             (tx, results) => {
                 const rows = results.rows;
