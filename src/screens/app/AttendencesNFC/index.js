@@ -130,8 +130,13 @@ const AttendencesNFC = (props) => {
 
         } catch (error) {
             console.log('Utilisateur non trouvé :', error);
+        } finally {
+            if (nfcInputRef.current) {
+                nfcInputRef.current.focus();
+            }
         }
     };
+
     useEffect(() => {
         if (nfcInputRef.current) {
             nfcInputRef.current.focus();

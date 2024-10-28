@@ -36,7 +36,7 @@ const AttendencesStack = () => {
                 const res = await getDataAS(`${LOCAL_URL1}/api/employees/attendances`);
                 if (res?.success) {
                     const data = res?.success ? res?.data : [];
-                    console.log("/////////////", data);
+                    console.log("/////////////", data.length);
                     upsertAttendance(data).then(result => {
                         console.log(",,,,,,,,,,,,,,,,,,", result);
                         dispatch(updateAttendencesBannerMessage("La synchronisation de companys a reussi"));
@@ -67,6 +67,8 @@ const AttendencesStack = () => {
             if (data && data.data && data.data.length > 0) {
                 console.log("getUnSyncRequest---------------------#########", data.data.length);
                 // await insertMultipleRequests(data.data);
+                // dispatch(updateSynAttendencesDOWN(false));
+
             }
             dispatch(updateSyncingAttendences(false));
         } catch (error) {
@@ -91,9 +93,9 @@ const AttendencesStack = () => {
 
     useEffect(() => {
         if (synUp) {
+            console.log("----------------------------------");
             synServerDataData();
         }
-        console.log("----------------------------------");
     }, [synUp])
 
     const getEmployee = async (): Promise<void> => {
@@ -131,7 +133,6 @@ const AttendencesStack = () => {
         dispatch(updateSyncingAttendences(true));
         dispatch(updateAttendencesBannerMessage("Demarage de la synchronitions des Employee "));
         await getEmployee();
-        getLastAttendences()
         const data: any = await getUnSyncAttendance();
         if (data && data.data && data.data.length > 0) {
             console.log("getUnSyncRequest@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@", data.data);
