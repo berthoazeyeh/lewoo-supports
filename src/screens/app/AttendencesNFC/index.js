@@ -82,6 +82,15 @@ const AttendencesNFC = (props) => {
     const onRfidScan = async (rfidCode) => {
         try {
             const res = await getUserByRfidCodes(rfidCode);
+            clearTimeoutRef = setTimeout(() => {
+                setMessage(null)
+                setNfcTag('');
+                setSelectedUser(null);
+                setModalVisible(false);
+                if (nfcInputRef.current) {
+                    nfcInputRef.current.focus();
+                }
+            }, 3000);
             if (res.success) {
                 if (typingTimeout) {
                     clearTimeout(typingTimeout);
@@ -101,15 +110,6 @@ const AttendencesNFC = (props) => {
                     if (clearTimeoutRef) {
                         clearTimeout(clearTimeoutRef);
                     }
-                    clearTimeoutRef = setTimeout(() => {
-                        setMessage(null)
-                        setNfcTag('');
-                        setSelectedUser(null);
-                        setModalVisible(false);
-                        if (nfcInputRef.current) {
-                            nfcInputRef.current.focus();
-                        }
-                    }, 15000);
                     dispatch(updateSynAttendencesUP(false))
                     setTimeout(() => {
                         dispatch(updateSynAttendencesUP(true))
@@ -125,7 +125,7 @@ const AttendencesNFC = (props) => {
                     if (nfcInputRef.current) {
                         nfcInputRef.current.focus();
                     }
-                }, 5000);
+                }, 3000);
             }
 
         } catch (error) {
@@ -235,7 +235,7 @@ const AttendencesNFC = (props) => {
             </Modal>
 
 
-            <TouchableWithoutFeedback onPress={() => nfcInputRef.current && nfcInputRef.current.focus()}>
+            {/* <TouchableWithoutFeedback onPress={() => nfcInputRef.current && nfcInputRef.current.focus()}> */}
                 <SafeAreaView style={styles.container}>
                     <ScrollView contentContainerStyle={styles.content}>
                         <Card style={styles.card}>
@@ -306,7 +306,7 @@ const AttendencesNFC = (props) => {
                         }}
                     />
                 </SafeAreaView>
-            </TouchableWithoutFeedback>
+            {/* </TouchableWithoutFeedback> */}
 
         </View>
     );
