@@ -12,6 +12,7 @@ import { name as appName } from './app.json';
 import { appStore, persistor } from 'store';
 import { useEffect } from 'react';
 import { enableScreens } from 'react-native-screens'
+navigator.geolocation = require('@react-native-community/geolocation')
 
 
 const AppWrapper = () => {

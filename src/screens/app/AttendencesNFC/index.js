@@ -7,7 +7,7 @@ import Tts from 'react-native-tts';
 import KeepAwake from 'react-native-keep-awake';
 import ListeningIndicator from 'components/Listining';
 import MyBanner from 'components/MyBanner';
-import { updateSynAttendencesUP, useIsSyncing, useSyncingAttendences, useTheme } from 'store';
+import { updateSynAttendencesUP, useIsSyncing, userCurrentTiming, useSyncingAttendences, useTheme } from 'store';
 import { createTableForAttendance, db, getUserByRfidCodes, handleAttendance, handleCreateAttendance, handleCreateAttendanceCorrect } from 'apis/databaseAttend';
 import { oupss, Theme } from 'utils';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -21,11 +21,16 @@ let clearTimeoutRef = null;
 const selectAllFromAfricasystem = () => {
     db.transaction(tx => {
         tx.executeSql(
-            `SELECT * FROM attendance WHERE id_user = ? ORDER BY created_at DESC LIMIT 1;`,
-            [30],
-            (_, { rows }) => {
+            `SELECT * FROM attendance_log;`,
+            [],
+            (_, results) => {
+                const rows = results.rows;
+                let data = [];
 
-                console.log("rows........", rows.item(0));
+                for (let i = 0; i < rows.length; i++) {
+                    data.push(rows.item(i));
+                }
+                console.log('Retrieved data from attendance_log:^^^^^^^', data);
 
             });
         tx.executeSql(
@@ -65,6 +70,7 @@ const AttendencesNFC = (props) => {
     const [addUserModalVisible, setAddUserModalVisible] = useState(false);
     const [message, setMessage] = useState(null);
     const isSynchronised = useSyncingAttendences();
+    const timing = userCurrentTiming();
     const theme = useTheme();
     const { navigation } = props
     const nfcInputRef = useRef(null);
@@ -75,33 +81,43 @@ const AttendencesNFC = (props) => {
     }
     const handleNfcInput = (rfidcode) => {
         setNfcTag(rfidcode);
-        onRfidScan(rfidcode)
+        setTimeout(() => {
+            onRfidScan(rfidcode)
+        }, 200);
     };
+    let minutes = Math.floor(timing);
+    let seconds = Math.round((timing - minutes) * 60);
+    console.log(minutes, seconds);
+
 
 
     const onRfidScan = async (rfidCode) => {
         try {
             const res = await getUserByRfidCodes(rfidCode);
-            clearTimeoutRef = setTimeout(() => {
-                setMessage(null)
-                setNfcTag('');
-                setSelectedUser(null);
-                setModalVisible(false);
-                if (nfcInputRef.current) {
-                    nfcInputRef.current.focus();
-                }
-            }, 3000);
+
             if (res.success) {
                 if (typingTimeout) {
                     clearTimeout(typingTimeout);
                 }
                 setTmpVisible(false)
                 setSelectedUser(res.data);
-                const res1 = await handleCreateAttendanceCorrect(res.data?.id, res.data?.name);
+                // selectAllFromAfricasystem()
+                const res1 = await handleCreateAttendanceCorrect(res.data?.id, res.data?.name, rfidCode, null, timing, null, null);
                 console.log("res1[[[[", res1);
 
                 if (res1.success) {
+                    setModalVisible(true);
+                    setAddUserModalVisible(false)
                     setMessage(res1.message)
+                    setTimeout(() => {
+                        setMessage(null)
+                        setNfcTag('');
+                        setSelectedUser(null);
+                        setModalVisible(false);
+                        if (nfcInputRef.current) {
+                            nfcInputRef.current.focus();
+                        }
+                    }, 3000);
                     if (isTtsEnabled) {
                         Tts.setDefaultLanguage(selectedLanguage).then(() => {
                             Tts.speak(res1.message);
@@ -114,11 +130,34 @@ const AttendencesNFC = (props) => {
                     setTimeout(() => {
                         dispatch(updateSynAttendencesUP(true))
                     }, 1000);
+                } else {
+                    setMessage(res1.message)
+                    setModalVisible(false)
+                    setAddUserModalVisible(true)
+                    if (isTtsEnabled) {
+                        Tts.setDefaultLanguage(selectedLanguage).then(() => {
+                            Tts.speak(res1.message);
+                        });
+                    }
+                    if (clearTimeoutRef) {
+                        clearTimeout(clearTimeoutRef);
+                    }
+                    setTimeout(() => {
+                        setMessage(null)
+                        setNfcTag('');
+                        setSelectedUser(null);
+                        setModalVisible(false);
+                        setAddUserModalVisible(false);
+                        if (nfcInputRef.current) {
+                            nfcInputRef.current.focus();
+                        }
+                    }, 10000);
+                    // Alert.alert('Erreur', res1.message)
                 }
-                selectAllFromAfricasystem()
-                setModalVisible(true);
+
             } else {
                 setTmpVisible(false)
+                setModalVisible(false)
                 setAddUserModalVisible(true)
                 clearTimeoutRef = setTimeout(() => {
                     setAddUserModalVisible(false);
@@ -208,7 +247,7 @@ const AttendencesNFC = (props) => {
                         <Button
                             icon={!loading ? "account-arrow-right" : undefined}
                             mode="contained"
-                            onPress={() => onRfidScan(nfcTag)}
+                            onPress={() => handleNfcInput(nfcTag)}
                         >
                             {loading ? <ActivityIndicator color={theme.secondaryText} /> : ' check.'}
                         </Button>
@@ -232,7 +271,9 @@ const AttendencesNFC = (props) => {
                             source={oupss}
                             style={styles.image}
                         />
-                        <Text style={styles.labels}>Nous avons du mal à vous reconnaître, veuillez réessayer s'il vous plaît.</Text>
+                        <Text style={[styles.labels, {
+                            fontSize: 18,
+                        }]}>{message ? message : 'Nous avons du mal à vous reconnaître, veuillez réessayer s\'il vous plaît.'}</Text>
                         <Text style={styles.labels}>{nfcTag}</Text>
 
                     </View>
@@ -240,15 +281,20 @@ const AttendencesNFC = (props) => {
             </Modal>
 
 
-            {/* <TouchableWithoutFeedback onPress={() => nfcInputRef.current && nfcInputRef.current.focus()}> */}
+            <TouchableWithoutFeedback onPress={() => nfcInputRef.current && nfcInputRef.current.focus()}>
                 <SafeAreaView style={styles.container}>
                     <ScrollView contentContainerStyle={styles.content}>
                         <Card style={styles.card}>
                             <Card.Content>
                                 <Title style={styles.title}> Africasystems NFC Reader</Title>
+                                <Paragraph style={{ textAlign: "center", ...Theme.fontStyle.montserrat.italic }}>
+                                    Le temp d'attente pour un employer entre deux badge est de:
+                                    {minutes > 0 && <Text style={styles.label}> {minutes} minutes</Text>}
+                                    {minutes <= 0 && <Text style={styles.label}> {seconds} secondes</Text>}
+                                </Paragraph>
                             </Card.Content>
                         </Card>
-                        <View style={{ marginVertical: 60, height: 200 }}>
+                        <View style={{ marginVertical: 30, height: 200 }}>
                             <ListeningIndicator />
                         </View>
                         <Card style={styles.card}>
@@ -283,6 +329,8 @@ const AttendencesNFC = (props) => {
                             value={nfcTag}
                             onChangeText={handleNfcInput}
                             autoFocus={true}
+                            onBlur={() => console.log("'''''''''''''''''''''''''''''")
+                            }
                         />
                         {nfcTag && (
                             <Card style={styles.tagCard}>
@@ -292,13 +340,21 @@ const AttendencesNFC = (props) => {
                                 </Card.Content>
                             </Card>
                         )}
+                    </ScrollView>
+                    <View style={{ flexDirection: "row", padding: 10, }}>
+
+                        <Button icon="login" mode="contained" onPress={() => navigation.navigate("LoginScreen2")}>
+                            Se connecter.
+                        </Button>
                         <Button icon="account-arrow-right" mode="contained" onPress={() => navigation.reset({
                             index: 0,
                             routes: [{ name: 'ApplicationStacks' }],
-                        })}>
+                        })}
+                            style={{ flex: 1, marginLeft: 10, backgroundColor: theme.primaryText }}
+                        >
                             Vous êtes membre du support ? Continuez.
                         </Button>
-                    </ScrollView>
+                    </View>
                     <FAB
                         icon="plus"
                         style={styles.fab}
@@ -310,8 +366,19 @@ const AttendencesNFC = (props) => {
 
                         }}
                     />
+                    <FAB
+                        icon="plus"
+                        style={styles.fab2}
+                        color={theme.gray4}
+
+                        onPress={() => {
+                            navigation.navigate('ViewAllAttendances');
+
+
+                        }}
+                    />
                 </SafeAreaView>
-            {/* </TouchableWithoutFeedback> */}
+            </TouchableWithoutFeedback>
 
         </View>
     );
@@ -322,7 +389,13 @@ const styles = StyleSheet.create({
         position: 'absolute',
         margin: 16,
         right: 0,
-        bottom: 20,
+        bottom: 50,
+    },
+    fab2: {
+        position: 'absolute',
+        margin: 16,
+        right: 0,
+        bottom: 200,
     },
     container: {
         flex: 1,
@@ -335,7 +408,7 @@ const styles = StyleSheet.create({
     },
     card: {
         elevation: 0,
-        marginBottom: 20,
+        marginBottom: 10,
         width: '100%',
         backgroundColor: '#FFFFFF',
     },

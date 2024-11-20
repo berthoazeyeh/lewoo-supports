@@ -19,7 +19,7 @@ const persistConfig = {
   storage: AsyncStorage,
   timeout: 10000,
   version: 1,
-  whitelist: ['current_screen', 'translation', 'theme', "user"],
+  whitelist: ['current_screen', 'translation', 'theme', "user", 'time'],
 };
 
 const persistedReducer = persistReducer(persistConfig, RootReducer);

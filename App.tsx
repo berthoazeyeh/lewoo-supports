@@ -16,11 +16,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import FlashMessage from 'react-native-flash-message';
 import { I18n } from 'i18n';
 import { SWRConfig } from 'swr';
+import Geolocation from '@react-native-community/geolocation'
 
 // @ts-ignore
 import { AppStack } from '@navigation';
 import { InitialStack } from 'navigation/stack/InitialStack';
 
+navigator.geolocation = require('@react-native-community/geolocation')
 
 const App = () => {
 
@@ -41,7 +43,6 @@ const App = () => {
       ...themeColors
     },
   };
-
   return (<GestureHandlerRootView style={{ flex: 1 }}>
     <PaperProvider theme={theme}>
       <SafeAreaView style={{ flex: 1 }}>

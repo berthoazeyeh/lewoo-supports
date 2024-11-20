@@ -51,6 +51,13 @@ export async function postData1(url, { arg }) {
             return res.json()
         } else {
             console.log("mauvaise reponse", res);
+            throw {
+                success: false,
+                status: res.status,
+                statusText: res.statusText,
+                error: res
+            };
+
         }
     })
 }
@@ -366,11 +373,20 @@ export async function getDataAS(url) {
     return fetch(url, {
         headers: headers1,
         method: 'GET',
-    }).then((res) => {
+    }).then(async (res) => {
         if (res.ok) {
 
             return res.json()
         } else {
+            //    const erro={status}
+            //     return res.status
+            console.log("mauvaise reponse", res);
+            throw {
+                success: false,
+                status: res.status,
+                statusText: res.statusText,
+                error: res
+            };
             console.log("mauvaise reponse", res);
 
         }
